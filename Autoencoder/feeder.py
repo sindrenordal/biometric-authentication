@@ -10,10 +10,6 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 from sklearn.preprocessing import OneHotEncoder
 
-import keras as k
-from keras.models import Sequential
-from keras.layers import Dense, LSTM, Dropout
-
 from tensorflow.python.client import device_lib
 print(device_lib.list_local_devices())
 
@@ -85,29 +81,10 @@ def split(data):
 
     return X_train, X_test, y_train, y_test
     
-def evaluate_model(X_train, X_test, y_train, y_test):
-    verbose = 1
-    epochs = 10
-    batch_size = 128
-    n_timesteps = X_train.shape[1]
-    n_features = X_train.shape[2]
-    n_outputs = y_train.shape[1]
-    model = Sequential()
-    model.add(LSTM(500, input_shape = (n_timesteps, n_features)))
-    model.add(Dropout(0.3))
-    model.add(Dense(500, activation='tanh'))
-    model.add(Dense(n_outputs, activation='softmax'))
-    model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
-    model.fit(X_train, y_train, epochs=epochs, batch_size=batch_size, verbose=verbose)
-    print("Done fitting")
-    print(model.summary())
-    accuracy = model.evaluate(X_test, y_test, batch_size=batch_size, verbose=verbose)
-    return accuracy
 
-if __name__ == "__main__":
+def prepare_data():
     subject_ids = find_subject_ids("public_dataset/")
-    subject_ids = subject_ids[:10] #Reduced for development purposes
+    subject_ids = subject_ids[:5] #Reduced for development purposes
     df = load_dataframe(subject_ids)
     X_train, X_test, y_train, y_test = split(df)
-    acc = evaluate_model(X_train, X_test, y_train, y_test)
-    print(acc)  
+    return X_train, X_test, y_train, y_test   
