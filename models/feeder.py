@@ -6,12 +6,11 @@ import os
 import zipfile
 from preprocessing.reformatting import find_subject_ids
 
+from sklearn.preprocessing import MinMaxScaler
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 from sklearn.preprocessing import OneHotEncoder
 
-from tensorflow.python.client import device_lib
-print(device_lib.list_local_devices())
 
 # Config to run on GPU
 
@@ -58,7 +57,7 @@ def load_dataframe(subject_ids):
                     keep = ["X","Y","Z","SubjectID", "ActivityID"]
                     df = df[keep]
                     content = df.values
-                    divide_windows(content, 2000)
+                    divide_windows(content, 1000)
     loaded = np.stack(LOADED_FILES)
     return loaded
 
@@ -68,23 +67,29 @@ Test size: 25%
 Number of subjects: 10
 
 '''
-def split(data):
+def split(data, binary):
     print("split")
+
+    #data[:,:,0] = (data[:,:,0] - data[:,:,0].min())/(data[:,:,0].max() - data[:,:,0].min())
+    #data[:,:,1] = (data[:,:,1] - data[:,:,1].min())/(data[:,:,1].max() - data[:,:,1].min())
+    #data[:,:,2] = (data[:,:,2] - data[:,:,2].min())/(data[:,:,2].max() - data[:,:,2].min())
     X = data[:, :, :3]
     y = data[:, :, 3]
+
     
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=.25, random_state=20)
     y_train = y_train[:,0]
     y_test = y_test[:,0]
-    y_train = pd.get_dummies(y_train)
-    y_test = pd.get_dummies(y_test)
+    if(not binary):
+        y_train = pd.get_dummies(y_train)
+        y_test = pd.get_dummies(y_test)
 
     return X_train, X_test, y_train, y_test
     
 
-def prepare_data():
+def prepare_data(users, binary):
     subject_ids = find_subject_ids("public_dataset/")
-    subject_ids = subject_ids[:5] #Reduced for development purposes
+    subject_ids = subject_ids[16:18] #Reduced for development purposes
     df = load_dataframe(subject_ids)
-    X_train, X_test, y_train, y_test = split(df)
+    X_train, X_test, y_train, y_test = split(df, binary)
     return X_train, X_test, y_train, y_test   
