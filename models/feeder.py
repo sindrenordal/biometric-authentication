@@ -11,10 +11,6 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 from sklearn.preprocessing import OneHotEncoder
 
-
-# Config to run on GPU
-
-
 '''
 1) Import data
 2) Divide data into windows
@@ -89,7 +85,7 @@ def split(data, binary):
 
 def prepare_data(users, binary):
     subject_ids = find_subject_ids("public_dataset/")
-    subject_ids = subject_ids[16:18] #Reduced for development purposes
+    subject_ids = subject_ids[21:23] #Reduced for development purposes
     df = load_dataframe(subject_ids)
     X_train, X_test, y_train, y_test = split(df, binary)
     return X_train, X_test, y_train, y_test   
