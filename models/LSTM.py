@@ -17,8 +17,6 @@ from sklearn.metrics import confusion_matrix
 
 from preprocessing.reformatting import find_subject_ids
 
-LOADED_FILES = []
-
 # Load processed csv-file
 def load_file(filename):
     data_location = "../Accelerometer_data/"+filename+".csv"
@@ -37,11 +35,12 @@ def divide_windows(data, window_size):
     for i in range(0, number_windows):
         start = start_point + window_size*i
         end = start_point + window_size*(i+1)
-        LOADED_FILES.append(data[start:end, :])
+        windows.append(data[start:end, :])
+    return windows
 
 def load_dataframe(subject_ids):
     file_contents = []
-    loaded_files = list()
+    loaded_files = []
     for subject_id in subject_ids:
         print(subject_id)
         with zipfile.ZipFile("public_dataset/" + subject_id+".zip") as file:
@@ -54,8 +53,8 @@ def load_dataframe(subject_ids):
                     keep = ["X","Y","Z","SubjectID", "ActivityID"]
                     df = df[keep]
                     content = df.values
-                    divide_windows(content, 1000)
-    loaded = np.stack(LOADED_FILES)
+                    loaded_files.extend(divide_windows(content, 1500))
+    loaded = np.stack(loaded_files)
     return loaded
 
 '''
@@ -67,6 +66,7 @@ Number of subjects: 10
 def split(subject_id, data):
     print("split")
 
+    # Min-max scale
     #data[:,:,0] = (data[:,:,0] - data[:,:,0].min())/(data[:,:,0].max() - data[:,:,0].min())
     #data[:,:,1] = (data[:,:,1] - data[:,:,1].min())/(data[:,:,1].max() - data[:,:,1].min())
     #data[:,:,2] = (data[:,:,2] - data[:,:,2].min())/(data[:,:,2].max() - data[:,:,2].min())
@@ -74,13 +74,11 @@ def split(subject_id, data):
     y = data[:, :, 3]
 
     
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=.25, random_state=20)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=.2, shuffle=True, random_state=20)
     y_train = y_train[:,0]
     y_test = y_test[:,0]
     y_train = (y_train == subject_id).astype(int)
     y_test = (y_test == subject_id).astype(int)
-    y_train = pd.get_dummies(y_train)
-    y_test = pd.get_dummies(y_test)
 
     return X_train, X_test, y_train, y_test
     
@@ -94,32 +92,36 @@ def prepare_data(users, binary):
 
 def evaluate_model(X_train, X_test, y_train, y_test):
     verbose = 1
-    epochs = 15
+    epochs = 25
     batch_size = 256
     n_timesteps = X_train.shape[1]
     n_features = X_train.shape[2]
-    n_outputs = y_train.shape[1]
-    print(n_outputs)
     model = Sequential()
     model.add(CuDNNLSTM(64, return_sequences=True, input_shape = (n_timesteps, n_features)))
+    #model.add(Dropout(0.1))
     model.add(CuDNNLSTM(64))
-    model.add(Dense(n_outputs, activation='softmax'))
+    model.add(Dense(2, activation='softmax'))
     model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
     
     history = model.fit(X_train, y_train, epochs=epochs, batch_size=batch_size, verbose=verbose)
 
     # Plot accuracy
-    plt.plot(history.history['acc'])
-    plt.title('model accuracy')
-    plt.ylabel('accuracy')
-    plt.xlabel('epoch')
-    plt.show()
+    plot = False
+    if plot:
+        plt.plot(history.history['acc'])
+        plt.title('model accuracy')
+        plt.ylabel('accuracy')
+        plt.xlabel('epoch')
+        plt.show()
 
     print("Done fitting")
     accuracy = model.evaluate(X_test, y_test, batch_size=batch_size, verbose=verbose)
 
     # Confusion matrix
     y_pred = model.predict(X_test)
+    print(y_pred)
+    print(y_test)
+
     cm = confusion_matrix(y_test.values.argmax(axis=1), y_pred.argmax(axis=1))
     print(cm)
 
@@ -135,15 +137,28 @@ if __name__ == "__main__":
         duplicate = False
         while(not duplicate):
             duplicate = True
-            ref1 = subject_ids[r.randint(0,len(subject_ids))]
-            ref2 = subject_ids[r.randint(0,len(subject_ids))]
-            ref3 = subject_ids[r.randint(0,len(subject_ids))]
-            if(subject_id == ref1 or subject_id == ref2 or subject_id == ref3):
+            ref1 = subject_ids[r.randint(0,len(subject_ids)-1)]
+            ref2 = subject_ids[r.randint(0,len(subject_ids)-1)]
+            if(subject_id == ref1 or subject_id == ref2 or ref1 == ref2):
                 duplicate = True
-            print(subject_id,ref1,ref2,ref3)
-        df = load_dataframe([subject_id, ref1, ref2, ref3])
-        X_train, X_test, y_train, y_test = split(subject_id, df)
+            print(subject_id,ref1,ref2)
+        df_pos = load_dataframe([subject_id])
+        df_neg = load_dataframe([ref1, ref2])
+
+        #Check for imbalance
+        if(len(df_neg)/len(df_pos) > 1):
+            df_neg = df_neg[:len(df_pos)]
+            print("imbalance")
+        X_train_pos, X_test_pos, y_train_pos, y_test_pos = split(subject_id, df_pos)
+        X_train_neg, X_test_neg, y_train_neg, y_test_neg = split(subject_id, df_neg)
+        X_train = np.concatenate([X_train_pos, X_train_neg], axis=0)
+        X_test = np.concatenate([X_test_pos, X_test_neg], axis=0)
+        y_train = np.concatenate([y_train_pos, y_train_neg], axis=0)
+        y_test = np.concatenate([y_test_pos, y_test_neg], axis=0)
         print(y_train.shape)
+        print(y_test.shape)
+        y_train = pd.get_dummies(y_train)
+        y_test = pd.get_dummies(y_test)
         acc = evaluate_model(X_train, X_test, y_train, y_test)
         print("Accuracy: ", acc)
 
