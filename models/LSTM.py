@@ -66,10 +66,6 @@ Number of subjects: 10
 def split(subject_id, data):
     print("split")
 
-    # Min-max scale
-    #data[:,:,0] = (data[:,:,0] - data[:,:,0].min())/(data[:,:,0].max() - data[:,:,0].min())
-    #data[:,:,1] = (data[:,:,1] - data[:,:,1].min())/(data[:,:,1].max() - data[:,:,1].min())
-    #data[:,:,2] = (data[:,:,2] - data[:,:,2].min())/(data[:,:,2].max() - data[:,:,2].min())
     X = data[:, :, :3]
     y = data[:, :, 3]
 
@@ -149,6 +145,7 @@ if __name__ == "__main__":
         if(len(df_neg)/len(df_pos) > 1):
             df_neg = df_neg[:len(df_pos)]
             print("imbalance")
+
         X_train_pos, X_test_pos, y_train_pos, y_test_pos = split(subject_id, df_pos)
         X_train_neg, X_test_neg, y_train_neg, y_test_neg = split(subject_id, df_neg)
         X_train = np.concatenate([X_train_pos, X_train_neg], axis=0)
