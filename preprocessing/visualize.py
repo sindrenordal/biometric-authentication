@@ -18,7 +18,21 @@ def plot_dataframe(datafr):
     plt.plot(x, 'Z', data = datafr, color='b')
     plt.show()
 
-if __name__ == "__main__":
+def plot_windows_results():
+    auc = [0.8075, 0.8196, 0.8140, 0.7584]
+    eer = [0.2571, 0.2412, 0.2509, 0.2928]
+    window_sizes = [100, 300, 500, 1500]
+    plt.plot(window_sizes, auc, color='r', label="AUC")
+    plt.plot(window_sizes, eer, color='b', label="EER")
+    plt.ylabel("Percentage")
+    plt.xlabel("Window size")
+    plt.legend()
+    plt.grid(True)
+    plt.show()
+
+def show_dataframe():
     df = read_file("100669")
     print(df.shape[0])
     plot_dataframe(df)
+
+plot_windows_results()
