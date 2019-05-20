@@ -138,7 +138,9 @@ def run_training():
         model_path = "models/lstm/"+subject_id+".h5"
         model.save(model_path)
 
-run_training()
+
+if __name__ == "__main__":
+    run_training()
 
 
 
