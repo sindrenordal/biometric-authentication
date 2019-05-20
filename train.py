@@ -4,12 +4,10 @@ import pandas as pd
 import numpy as np
 import random as r
 import os
-import zipfile
 
 from tensorflow.python import keras
-
 from keras.models import Sequential, load_model
-from keras.layers import Dense, CuDNNLSTM, Dropout, LSTM
+from keras.layers import Dense, CuDNNLSTM, Dropout
 
 def find_subject_ids(dataset_name):
     subject_ids = []
@@ -17,6 +15,7 @@ def find_subject_ids(dataset_name):
         subject_ids.append(file_name.split(".")[0])
     return subject_ids[:-1]
 
+# Train model
 def train_model(X_train, X_test, y_train, y_test):
     verbose = 1
     epochs = 50
@@ -24,8 +23,9 @@ def train_model(X_train, X_test, y_train, y_test):
     n_timesteps = X_train.shape[1]
     n_features = X_train.shape[2]
 
+    # Architecture of model
     model = Sequential()
-    model.add(LSTM(25, input_shape=(n_timesteps, n_features)))
+    model.add(CuDNNLSTM(25, input_shape=(n_timesteps, n_features)))
     model.add(Dense(25))
     model.add(Dropout(0.1))
     model.add(Dense(2, activation='softmax'))
@@ -34,20 +34,9 @@ def train_model(X_train, X_test, y_train, y_test):
     model.fit(X_train, y_train, epochs=epochs, batch_size=batch_size, verbose=verbose)
 
     acc = model.evaluate(X_test, y_test, batch_size=batch_size, verbose=verbose)
-    print("Test accuracy: ", acc)
     return model, acc
 
-def load_file(subjectid, type):
-    X_name = ""
-    if (type == "train"):
-        X_name = "df_train.csv"
-    elif (type == "test"):
-        X_name = "df_test.csv"
-    elif (type == "val"):
-        X_name = "df_val.csv"
-    X_location = "split/"+subjectid+"/"+X_name
-    X = pd.read_csv(X_location)
-
+# Split accelerometer data from labels
 def split(subject_id, data):
     X = data[:, :, :3]
     y = data[:, :, 3]
@@ -70,6 +59,7 @@ def divide_windows(data, window_size):
         windows.append(data[start:end, :])
     return windows
 
+# Loading data from the positive subject
 def load_dataframe(subject_id, type):
     loaded_files = []
     X_name = ""
@@ -86,6 +76,7 @@ def load_dataframe(subject_id, type):
     loaded = np.stack(loaded_files)
     return loaded
 
+# Load windows from multiple negative subjects
 def load_neg(subjectID, subject_ids, windows, type):
     loaded_files = []
     X_name = ""
@@ -107,12 +98,11 @@ def load_neg(subjectID, subject_ids, windows, type):
     loaded = np.stack(loaded_files)
     return loaded
 
-
+# Trains the model
 def run_training():
     subject_ids = find_subject_ids("split/")
     acc = []
     for subject_id in subject_ids:
-        print(subject_id)
         df_pos_train = load_dataframe(subject_id, "train")
         df_pos_test = load_dataframe(subject_id, "test")
         length_train = df_pos_train.shape[0]
@@ -126,17 +116,15 @@ def run_training():
             df_train_neg = df_train_neg[:len(df_pos_train)]
             df_test_neg = df_test_neg[:len(df_pos_test)]
 
-        print(df_pos_train.shape)
-        print(df_train_neg.shape)
-
+        # Concatenate positive and negative data into one dataframe
         df_train = np.concatenate([df_pos_train, df_train_neg], axis=0)
         df_test = np.concatenate([df_pos_test, df_test_neg], axis=0)
 
+        # Split accelerometer data and labels
         X_train, y_train = split(subject_id, df_train)
         X_test, y_test = split(subject_id, df_test)
 
         # Format for binary classification
-        
         y_train = np.array(y_train)
         y_train = pd.DataFrame(data=y_train, columns=['y'])
         y_train = pd.get_dummies(y_train, columns=['y'])
@@ -147,11 +135,10 @@ def run_training():
 
         model, metric = train_model(X_train, X_test, y_train, y_test)
         acc.append(metric[1])
-        model_path = "models/min_1600/"+subject_id+".h5"
+        model_path = "models/lstm/"+subject_id+".h5"
         model.save(model_path)
 
-if __name__ == "__main__":
-    run_training()
+run_training()
 
 
 

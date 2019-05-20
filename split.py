@@ -7,6 +7,7 @@ import errno
 
 from sklearn.model_selection import train_test_split
 
+# Find the subjectIDs in the dataset
 def find_subject_ids(dataset_name):
     subject_ids = []
     for file_name in os.listdir(dataset_name):
@@ -27,6 +28,7 @@ def divide_windows(data, window_size):
         windows.append(data[start:end, :])
     return windows
 
+# Load a dataframe from one or multiple subjects
 def load_dataframe(subject_ids):
     file_contents = []
     loaded_files = []
@@ -47,12 +49,11 @@ def load_dataframe(subject_ids):
     loaded = np.stack(loaded_files)
     return loaded
 
-
 def split(subject_id, data, size):
     X_train, X_test = train_test_split(data, test_size=size, shuffle=True, random_state=20)
-
     return X_train, X_test
 
+# Save data to a given file
 def save_file(data, filename):
     loc = "split/" + subject_id + "/" + filename
     if not os.path.exists(os.path.dirname(loc)):
@@ -67,19 +68,25 @@ def save_file(data, filename):
         np.savetxt(file, window, delimiter=",")
     file.close()
 
-subject_ids = find_subject_ids("../public_dataset/")
-i = 0
-for subject_id in subject_ids:
-    if(subject_id == "799296" or subject_id == "733162" or subject_id == "data_description" or subject_id == ""):
-        continue
-    i += 1
-    df = load_dataframe([subject_id])
-    df_dev, df_val = split(subject_id, df, 0.1)
-    df_train, df_test = train_test_split(df_dev, test_size=.2, shuffle=True, random_state=20)
-    #Save the splits to a new directory
-    save_file(df_val, "df_val.csv")
-    save_file(df_train, "df_train.csv")
-    save_file(df_test, "df_test.csv")
-    print("Done "+ subject_id + "   ||  Number completed: " + str(i) + "    ||  Percentage: " + str(float(i)/100. * 100) + "%")
+if __name__ == "__main__":
+    subject_ids = find_subject_ids("../public_dataset/")
+    i = 0
+    for subject_id in subject_ids:
+        if(subject_id == "data_description" or subject_id == ""):
+            continue
+        i += 1
+        df = load_dataframe([subject_id])
+
+        # Split dataframe into development and validation data
+        df_dev, df_val = split(subject_id, df, 0.1)
+
+        # Split development data into train and test
+        df_train, df_test = train_test_split(df_dev, test_size=.2, shuffle=True, random_state=20)
+
+        #Save the splits to a new directory
+        save_file(df_val, "df_val.csv")
+        save_file(df_train, "df_train.csv")
+        save_file(df_test, "df_test.csv")
+        print("Done "+ subject_id + "   ||  Number completed: " + str(i) + "    ||  Percentage: " + str(float(i)/100. * 100) + "%")
 
 
